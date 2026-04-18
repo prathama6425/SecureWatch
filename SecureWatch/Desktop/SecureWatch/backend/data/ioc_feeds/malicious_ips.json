@@ -1,0 +1,17 @@
+[
+  {"value": "45.142.212.100",  "category": "malware-c2",   "confidence": 95, "source": "AbuseIPDB",    "description": "Known C2 server for Emotet botnet"},
+  {"value": "185.220.101.45",  "category": "tor-exit",     "confidence": 90, "source": "TorProject",   "description": "Tor exit node used for anonymized attacks"},
+  {"value": "194.165.16.11",   "category": "scanner",      "confidence": 85, "source": "Shodan",       "description": "Mass scanning activity detected"},
+  {"value": "91.108.4.1",      "category": "phishing",     "confidence": 88, "source": "PhishTank",    "description": "Phishing kit hosting server"},
+  {"value": "62.210.100.100",  "category": "brute-force",  "confidence": 92, "source": "AbuseIPDB",    "description": "Active SSH brute force source"},
+  {"value": "185.130.5.231",   "category": "ransomware",   "confidence": 97, "source": "ThreatFox",    "description": "LockBit 3.0 ransomware C2 operator"},
+  {"value": "103.25.206.34",   "category": "malware-c2",   "confidence": 80, "source": "OTX",          "description": "Suspected Cobalt Strike C2"},
+  {"value": "77.105.132.70",   "category": "scanner",      "confidence": 75, "source": "GreyNoise",    "description": "Vulnerability scanner / mass exploit"},
+  {"value": "5.188.86.172",    "category": "spam",         "confidence": 82, "source": "SpamHaus",     "description": "Spam relay node"},
+  {"value": "212.83.32.200",   "category": "brute-force",  "confidence": 89, "source": "AbuseIPDB",    "description": "RDP brute force attacker"},
+  {"value": "145.239.69.100",  "category": "ddos",         "confidence": 91, "source": "CISA",         "description": "DDoS amplification source"},
+  {"value": "192.168.99.200",  "category": "insider",      "confidence": 70, "source": "internal",     "description": "Rogue internal device flagged by EDR"},
+  {"value": "198.51.100.1",    "category": "phishing",     "confidence": 78, "source": "PhishTank",    "description": "Phishing domain hosting IP"},
+  {"value": "1.1.1.200",       "category": "scanner",      "confidence": 65, "source": "GreyNoise",    "description": "Lightweight port scanner"},
+  {"value": "89.248.167.131",  "category": "malware-c2",   "confidence": 93, "source": "ThreatFox",    "description": "Agent Tesla RAT C2 endpoint"}
+]

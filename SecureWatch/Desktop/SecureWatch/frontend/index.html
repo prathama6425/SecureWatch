@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mini SOC Lab — SIEM Threat Detection System</title>
+  <meta name="description" content="Security Operations Center dashboard with SIEM-based threat detection, incident response, and threat hunting capabilities." />
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Socket.IO -->
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ── Toast Notifications ──────────────────────────────────────── -->
+<div id="toast-container" aria-live="polite"></div>
+
+<!-- ── Sidebar ────────────────────────────────────────────────────── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <span class="brand-icon">⬡</span>
+    <div>
+      <div class="brand-name">SOC Lab</div>
+      <div class="brand-sub">Threat Detection v1.0</div>
+    </div>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-group">
+      <div class="nav-label">Overview</div>
+      <a href="#" class="nav-item active" data-page="dashboard" id="nav-dashboard">
+        <span class="nav-icon">◈</span> Dashboard
+      </a>
+      <a href="#" class="nav-item" data-page="alerts" id="nav-alerts">
+        <span class="nav-icon">◉</span> Alerts
+        <span class="nav-badge" id="alerts-badge">0</span>
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Response</div>
+      <a href="#" class="nav-item" data-page="incidents" id="nav-incidents">
+        <span class="nav-icon">◆</span> Incidents
+      </a>
+      <a href="#" class="nav-item" data-page="logs" id="nav-logs">
+        <span class="nav-icon">◇</span> Log Viewer
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Intelligence</div>
+      <a href="#" class="nav-item" data-page="hunting" id="nav-hunting">
+        <span class="nav-icon">◎</span> Threat Hunting
+      </a>
+      <a href="#" class="nav-item" data-page="intel" id="nav-intel">
+        <span class="nav-icon">◑</span> Threat Intel
+      </a>
+    </div>
+    <div class="nav-group">
+      <div class="nav-label">Tools</div>
+      <a href="#" class="nav-item" data-page="simulator" id="nav-simulator">
+        <span class="nav-icon">▣</span> Attack Simulator
+      </a>
+      <a href="#" class="nav-item" data-page="reports" id="nav-reports">
+        <span class="nav-icon">▤</span> SOC Reports
+      </a>
+    </div>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="user-info" id="user-info-sidebar">
+      <span class="user-avatar" id="user-avatar">A</span>
+      <div>
+        <div class="user-name" id="user-name-display">—</div>
+        <div class="user-role" id="user-role-display">—</div>
+      </div>
+    </div>
+    <button class="btn-logout" id="btn-logout" title="Logout">⎋</button>
+  </div>
+</aside>
+
+<!-- ── Main Content ────────────────────────────────────────────────── -->
+<main class="main-content" id="main-content">
+
+  <!-- Top Bar -->
+  <header class="topbar">
+    <div class="topbar-left">
+      <button class="sidebar-toggle" id="sidebar-toggle" title="Toggle Sidebar">☰</button>
+      <div class="breadcrumb" id="breadcrumb">Dashboard</div>
+    </div>
+    <div class="topbar-right">
+      <div class="status-bar">
+        <span class="status-dot" id="ws-dot" title="WebSocket status"></span>
+        <span class="status-text" id="ws-text">Connecting…</span>
+      </div>
+      <div class="clock" id="clock">—</div>
+    </div>
+  </header>
+
+  <!-- Pages (only one visible at a time) -->
+  <div class="page-container">
+
+    <!-- ── DASHBOARD ─────────────────────────────────────────────── -->
+    <section id="page-dashboard" class="page active">
+      <div class="page-header">
+        <h1>Security Operations Dashboard</h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost" id="btn-load-samples">⬆ Load Sample Logs</button>
+          <button class="btn btn-primary" id="btn-refresh-dash">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- KPI Cards -->
+      <div class="kpi-grid" id="kpi-grid">
+        <div class="kpi-card" id="kpi-alerts">
+          <div class="kpi-icon kpi-red">◉</div>
+          <div class="kpi-num" id="kpi-open-alerts">—</div>
+          <div class="kpi-label">Open Alerts</div>
+          <div class="kpi-sub" id="kpi-total-alerts">0 total</div>
+        </div>
+        <div class="kpi-card" id="kpi-critical-card">
+          <div class="kpi-icon kpi-orange">⚠</div>
+          <div class="kpi-num kpi-critical" id="kpi-critical">—</div>
+          <div class="kpi-label">Critical</div>
+          <div class="kpi-sub">Needs immediate action</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-blue">◆</div>
+          <div class="kpi-num" id="kpi-incidents">—</div>
+          <div class="kpi-label">Open Incidents</div>
+          <div class="kpi-sub" id="kpi-total-inc">0 total</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-icon kpi-purple">◈</div>
+          <div class="kpi-num" id="kpi-logs">—</div>
+          <div class="kpi-label">Logs Ingested</div>
+          <div class="kpi-sub" id="kpi-iocs">— IOCs loaded</div>
+        </div>
+      </div>
+
+      <!-- Charts Row -->
+      <div class="charts-row">
+        <div class="chart-card">
+          <div class="chart-title">Alert Trend (7 Days)</div>
+          <div style="position: relative; height: 120px; width: 100%;">
+            <canvas id="chart-trend"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Severity Breakdown</div>
+          <div style="position: relative; height: 120px; width: 100%;">
+            <canvas id="chart-severity"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">MITRE ATT&amp;CK Tactics</div>
+          <div style="position: relative; height: 120px; width: 100%;">
+            <canvas id="chart-tactics"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom Row -->
+      <div class="bottom-row">
+        <div class="table-card">
+          <div class="table-card-header">
+            <span>Top Attacking IPs</span>
+          </div>
+          <div style="max-height: 250px; overflow-y: auto;">
+            <table class="data-table" id="top-ips-table">
+              <thead><tr><th>IP Address</th><th>Alerts</th><th>Actions</th></tr></thead>
+              <tbody id="top-ips-body"><tr><td colspan="3" class="empty">No data</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+        <div class="table-card">
+          <div class="table-card-header">
+            <span>Recent Alerts</span>
+            <a href="#" class="link" data-page="alerts">View All →</a>
+          </div>
+          <div style="max-height: 250px; overflow-y: auto;">
+            <table class="data-table" id="recent-alerts-table">
+              <thead><tr><th>Sev</th><th>Rule</th><th>Source IP</th><th>Time</th></tr></thead>
+              <tbody id="recent-alerts-body"><tr><td colspan="4" class="empty">No alerts</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ALERTS ──────────────────────────────────────────────────── -->
+    <section id="page-alerts" class="page">
+      <div class="page-header">
+        <h1>Alert Management</h1>
+        <div class="page-actions">
+          <select id="alert-filter-status" class="select-input">
+            <option value="">All Statuses</option>
+            <option value="OPEN">Open</option>
+            <option value="ACK">Acknowledged</option>
+            <option value="CLOSED">Closed</option>
+          </select>
+          <button class="btn btn-primary" id="btn-refresh-alerts">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="table-card full-width">
+        <div style="max-height: 400px; overflow-y: auto;">
+          <table class="data-table" id="alerts-table">
+            <thead>
+              <tr>
+                <th style="position: sticky; top: 0; z-index: 10;">#</th>
+                <th style="position: sticky; top: 0; z-index: 10;">Sev</th>
+                <th style="position: sticky; top: 0; z-index: 10;">Rule</th>
+                <th style="position: sticky; top: 0; z-index: 10;">Source IP</th>
+                <th style="position: sticky; top: 0; z-index: 10;">Username</th>
+                <th style="position: sticky; top: 0; z-index: 10;">MITRE Tactic</th>
+                <th style="position: sticky; top: 0; z-index: 10;">Status</th>
+                <th style="position: sticky; top: 0; z-index: 10;">Time</th>
+                <th style="position: sticky; top: 0; z-index: 10;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="alerts-body">
+              <tr><td colspan="9" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Alert Detail Modal -->
+      <div class="modal-overlay" id="alert-modal-overlay">
+        <div class="modal" id="alert-modal">
+          <div class="modal-header">
+            <h3 id="modal-alert-title">Alert Detail</h3>
+            <button class="modal-close" id="alert-modal-close">✕</button>
+          </div>
+          <div class="modal-body" id="alert-modal-body">—</div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" id="modal-ack-btn">✓ Acknowledge</button>
+            <button class="btn btn-danger" id="modal-close-btn">✗ Close Alert</button>
+            <button class="btn btn-primary" id="modal-create-inc-btn">+ Create Incident</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── INCIDENTS ───────────────────────────────────────────────── -->
+    <section id="page-incidents" class="page">
+      <div class="page-header">
+        <h1>Incident Response</h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost" id="btn-create-incident">+ New Incident</button>
+          <button class="btn btn-primary" id="btn-refresh-incidents">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- IR Kanban Status Lane Summary -->
+      <div class="ir-lanes" id="ir-lanes">
+        <div class="ir-lane" data-status="TRIAGE">
+          <div class="ir-lane-title">🔍 Triage</div>
+          <div class="ir-lane-count" id="lane-TRIAGE">0</div>
+        </div>
+        <div class="ir-arrow">→</div>
+        <div class="ir-lane" data-status="INVESTIGATE">
+          <div class="ir-lane-title">🔬 Investigate</div>
+          <div class="ir-lane-count" id="lane-INVESTIGATE">0</div>
+        </div>
+        <div class="ir-arrow">→</div>
+        <div class="ir-lane" data-status="RESPOND">
+          <div class="ir-lane-title">🛡 Respond</div>
+          <div class="ir-lane-count" id="lane-RESPOND">0</div>
+        </div>
+        <div class="ir-arrow">→</div>
+        <div class="ir-lane" data-status="CLOSED">
+          <div class="ir-lane-title">✓ Closed</div>
+          <div class="ir-lane-count" id="lane-CLOSED">0</div>
+        </div>
+      </div>
+
+      <div class="table-card full-width">
+        <div style="max-height: 350px; overflow-y: auto;">
+          <table class="data-table" id="incidents-table">
+            <thead>
+              <tr>
+                <th style="position: sticky; top: 0; z-index: 10;">#</th><th style="position: sticky; top: 0; z-index: 10;">Title</th><th style="position: sticky; top: 0; z-index: 10;">Severity</th><th style="position: sticky; top: 0; z-index: 10;">Status</th>
+                <th style="position: sticky; top: 0; z-index: 10;">Assigned To</th><th style="position: sticky; top: 0; z-index: 10;">Alerts</th><th style="position: sticky; top: 0; z-index: 10;">Created</th><th style="position: sticky; top: 0; z-index: 10;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="incidents-body">
+              <tr><td colspan="8" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Incident Detail Modal -->
+      <div class="modal-overlay" id="incident-modal-overlay">
+        <div class="modal modal-wide" id="incident-modal">
+          <div class="modal-header">
+            <h3 id="incident-modal-title">Incident Detail</h3>
+            <button class="modal-close" id="incident-modal-close">✕</button>
+          </div>
+          <div class="modal-body" id="incident-modal-body">—</div>
+        </div>
+      </div>
+
+      <!-- Create Incident Modal -->
+      <div class="modal-overlay" id="create-inc-overlay">
+        <div class="modal" id="create-inc-modal">
+          <div class="modal-header">
+            <h3>Create New Incident</h3>
+            <button class="modal-close" id="create-inc-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Title *</label>
+              <input class="text-input" id="inc-title" placeholder="e.g. SSH Brute Force from 45.142.212.100" />
+            </div>
+            <div class="form-group">
+              <label>Severity</label>
+              <select class="select-input" id="inc-severity">
+                <option value="LOW">Low</option>
+                <option value="MEDIUM">Medium</option>
+                <option value="HIGH" selected>High</option>
+                <option value="CRITICAL">Critical</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Assigned To</label>
+              <input class="text-input" id="inc-assigned" placeholder="analyst" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" id="create-inc-cancel">Cancel</button>
+            <button class="btn btn-primary" id="create-inc-submit">Create Incident</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── LOG VIEWER ─────────────────────────────────────────────── -->
+    <section id="page-logs" class="page">
+      <div class="page-header">
+        <h1>Log Viewer</h1>
+        <div class="page-actions">
+          <select id="log-type-filter" class="select-input">
+            <option value="">All Sources</option>
+            <option value="linux">Linux</option>
+            <option value="web">Web Server</option>
+            <option value="firewall">Firewall</option>
+          </select>
+          <input id="log-ip-filter" class="text-input" placeholder="Filter by IP…" style="width:160px" />
+          <button class="btn btn-primary" id="btn-refresh-logs">↻ Refresh</button>
+        </div>
+      </div>
+      <div class="table-card full-width">
+        <div style="max-height: 450px; overflow-y: auto;">
+          <table class="data-table" id="logs-table">
+            <thead>
+              <tr><th style="position: sticky; top: 0; z-index: 10;">#</th><th style="position: sticky; top: 0; z-index: 10;">Time</th><th style="position: sticky; top: 0; z-index: 10;">Source</th><th style="position: sticky; top: 0; z-index: 10;">Src IP</th><th style="position: sticky; top: 0; z-index: 10;">User</th><th style="position: sticky; top: 0; z-index: 10;">Action</th><th style="position: sticky; top: 0; z-index: 10;">Status</th><th style="position: sticky; top: 0; z-index: 10;">Message</th></tr>
+            </thead>
+            <tbody id="logs-body">
+              <tr><td colspan="8" class="empty">Loading…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── THREAT HUNTING ─────────────────────────────────────────── -->
+    <section id="page-hunting" class="page">
+      <div class="page-header">
+        <h1>Threat Hunting</h1>
+      </div>
+      <div class="hunting-layout">
+        <!-- Predefined Queries Panel -->
+        <div class="hunt-sidebar">
+          <div class="hunt-sidebar-title">🎯 Predefined Hunts</div>
+          <div id="hunt-query-list" class="hunt-query-list">Loading…</div>
+        </div>
+        <!-- Query / Results Panel -->
+        <div class="hunt-main">
+          <div class="hunt-custom-box">
+            <div class="hunt-custom-title">Custom SQL Query</div>
+            <textarea id="hunt-custom-sql" class="code-input" rows="4" placeholder="SELECT * FROM logs WHERE source_ip='1.2.3.4' LIMIT 50"></textarea>
+            <button class="btn btn-primary" id="btn-hunt-run-custom">▶ Execute</button>
+          </div>
+          <div class="hunt-result-header" id="hunt-result-header" style="display:none">
+            <span id="hunt-result-title">Results</span>
+            <span class="hunt-result-count" id="hunt-result-count">0 rows</span>
+          </div>
+          <div id="hunt-results" class="hunt-results"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── THREAT INTELLIGENCE ─────────────────────────────────────── -->
+    <section id="page-intel" class="page">
+      <div class="page-header">
+        <h1>Threat Intelligence</h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost" id="btn-add-ioc">+ Add IOC</button>
+          <button class="btn btn-primary" id="btn-refresh-intel">↻ Refresh</button>
+        </div>
+      </div>
+
+      <!-- IOC Lookup -->
+      <div class="intel-lookup-card">
+        <div class="intel-lookup-title">⚡ Quick IOC Lookup</div>
+        <div class="intel-lookup-form">
+          <input id="ioc-lookup-val" class="text-input" placeholder="Enter IP or domain to check…" />
+          <select id="ioc-lookup-type" class="select-input" style="width:100px">
+            <option value="ip">IP</option>
+            <option value="domain">Domain</option>
+          </select>
+          <button class="btn btn-primary" id="btn-ioc-lookup">Check</button>
+        </div>
+        <div id="ioc-lookup-result" class="ioc-lookup-result"></div>
+      </div>
+
+      <div class="charts-row" style="margin-bottom:1rem">
+        <div class="chart-card">
+          <div class="chart-title">IOC Category Breakdown</div>
+          <div style="position: relative; height: 150px; width: 100%;">
+            <canvas id="chart-ioc-cats"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="table-card full-width">
+        <div class="table-card-header">
+          <span>IOC Database</span>
+          <div>
+            <select id="ioc-type-filter" class="select-input" style="font-size:0.8rem">
+              <option value="">All Types</option>
+              <option value="ip">IP</option>
+              <option value="domain">Domain</option>
+            </select>
+          </div>
+        </div>
+        <div style="max-height: 250px; overflow-y: auto;">
+          <table class="data-table" id="ioc-table">
+            <thead><tr><th style="position: sticky; top: 0; z-index: 10;">#</th><th style="position: sticky; top: 0; z-index: 10;">Type</th><th style="position: sticky; top: 0; z-index: 10;">Value</th><th style="position: sticky; top: 0; z-index: 10;">Category</th><th style="position: sticky; top: 0; z-index: 10;">Confidence</th><th style="position: sticky; top: 0; z-index: 10;">Source</th><th style="position: sticky; top: 0; z-index: 10;">Added</th></tr></thead>
+            <tbody id="ioc-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Add IOC Modal -->
+      <div class="modal-overlay" id="add-ioc-overlay">
+        <div class="modal" id="add-ioc-modal">
+          <div class="modal-header">
+            <h3>Add IOC</h3>
+            <button class="modal-close" id="add-ioc-close">✕</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Type</label>
+              <select class="select-input" id="new-ioc-type">
+                <option value="ip">IP Address</option>
+                <option value="domain">Domain</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Value *</label>
+              <input class="text-input" id="new-ioc-value" placeholder="e.g. 1.2.3.4 or evil.com" />
+            </div>
+            <div class="form-group">
+              <label>Category</label>
+              <input class="text-input" id="new-ioc-category" placeholder="e.g. malware-c2, phishing" value="unknown" />
+            </div>
+            <div class="form-group">
+              <label>Confidence (0-100)</label>
+              <input class="text-input" id="new-ioc-conf" type="number" value="80" min="0" max="100" />
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-ghost" id="add-ioc-cancel">Cancel</button>
+            <button class="btn btn-primary" id="add-ioc-submit">Add IOC</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── ATTACK SIMULATOR ────────────────────────────────────────── -->
+    <section id="page-simulator" class="page">
+      <div class="page-header">
+        <h1>Attack Simulator</h1>
+        <div class="page-actions">
+          <span class="badge badge-warning">⚠ Admin Only — Lab Use</span>
+        </div>
+      </div>
+      <div class="sim-grid">
+        <div class="sim-card" id="sim-bf">
+          <div class="sim-card-icon">🔐</div>
+          <div class="sim-card-title">SSH Brute Force</div>
+          <div class="sim-card-desc">Simulate N failed SSH login attempts followed by a successful compromise. Triggers T1110 alerts.</div>
+          <input class="text-input" id="sim-bf-ip" placeholder="Attacker IP (random if blank)" />
+          <button class="btn btn-danger btn-full sim-run-btn" data-type="brute_force">▶ Run Simulation</button>
+        </div>
+        <div class="sim-card" id="sim-ps">
+          <div class="sim-card-icon">📡</div>
+          <div class="sim-card-title">Port Scan</div>
+          <div class="sim-card-desc">Generate 30 firewall block entries across distinct ports from a single source. Triggers T1046 alerts.</div>
+          <input class="text-input" id="sim-ps-ip" placeholder="Attacker IP (random if blank)" />
+          <button class="btn btn-danger btn-full sim-run-btn" data-type="port_scan">▶ Run Simulation</button>
+        </div>
+        <div class="sim-card" id="sim-ph">
+          <div class="sim-card-icon">🎣</div>
+          <div class="sim-card-title">Phishing + Web Attack</div>
+          <div class="sim-card-desc">Simulate credential harvesting via fake login page, admin panel probe, and .env exposure.</div>
+          <input class="text-input" id="sim-ph-ip" placeholder="Attacker IP (random if blank)" />
+          <button class="btn btn-danger btn-full sim-run-btn" data-type="phishing_web">▶ Run Simulation</button>
+        </div>
+        <div class="sim-card sim-card-full" id="sim-fc">
+          <div class="sim-card-icon">⚡</div>
+          <div class="sim-card-title">Full Attack Chain</div>
+          <div class="sim-card-desc">Run all three attack stages sequentially from the same IP: Port Scan → SSH Brute Force → Phishing Web Attack. Triggers cross-source correlation alerts.</div>
+          <input class="text-input" id="sim-fc-ip" placeholder="Attacker IP (random if blank)" style="max-width:300px" />
+          <button class="btn btn-danger sim-run-btn" data-type="full_chain" style="padding:0.6rem 2rem">▶ Run Full Chain</button>
+        </div>
+      </div>
+
+      <!-- Simulation Output Terminal -->
+      <div class="terminal-card" id="sim-terminal-card" style="display:none">
+        <div class="terminal-header">
+          <span class="terminal-title">◉ Simulation Output</span>
+          <button class="btn btn-ghost btn-sm" id="clear-terminal">Clear</button>
+        </div>
+        <div class="terminal-body" id="sim-terminal"></div>
+      </div>
+    </section>
+
+    <!-- ── REPORTS ─────────────────────────────────────────────────── -->
+    <section id="page-reports" class="page">
+      <div class="page-header">
+        <h1>SOC Reports</h1>
+        <div class="page-actions">
+          <button class="btn btn-ghost" id="btn-gen-daily">📋 Daily Report</button>
+          <button class="btn btn-primary" id="btn-gen-weekly">📊 Weekly Report</button>
+        </div>
+      </div>
+      <div class="table-card full-width" style="margin-bottom:1.5rem">
+        <div class="table-card-header"><span>Generated Reports</span></div>
+        <table class="data-table" id="reports-table">
+          <thead><tr><th>#</th><th>Type</th><th>Period</th><th>Generated</th><th>Actions</th></tr></thead>
+          <tbody id="reports-body"><tr><td colspan="5" class="empty">No reports generated yet.</td></tr></tbody>
+        </table>
+      </div>
+      <div id="report-preview" class="report-preview" style="display:none">
+        <div class="report-preview-header">
+          <span>Report Preview</span>
+          <button class="btn btn-ghost btn-sm" id="close-report-preview">✕</button>
+        </div>
+        <iframe id="report-iframe" style="width:100%;height:350px;border:none;border-radius:0 0 8px 8px;background:#fff"></iframe>
+      </div>
+    </section>
+
+  </div><!-- end page-container -->
+</main>
+
+<!-- ── Login Modal ────────────────────────────────────────────────── -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-card">
+    <div class="login-logo">⬡</div>
+    <h2 class="login-title">SOC Lab</h2>
+    <p class="login-sub">SIEM Threat Detection System</p>
+    <div class="form-group">
+      <label>Username</label>
+      <input class="text-input" id="login-username" placeholder="admin / analyst / viewer" value="admin" />
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input class="text-input" id="login-password" type="password" placeholder="Password" value="admin123" />
+    </div>
+    <div class="login-hint">
+      <strong>Demo:</strong> admin/admin123 · analyst/analyst123 · viewer/viewer123
+    </div>
+    <button class="btn btn-primary btn-full" id="btn-login">🔐 Sign In</button>
+    <div id="login-error" class="login-error"></div>
+  </div>
+</div>
+
+<!-- Scripts -->
+<script src="js/app.js"></script>
+<script src="js/dashboard.js"></script>
+<script src="js/alerts.js"></script>
+<script src="js/incidents.js"></script>
+<script src="js/hunting.js"></script>
+<script src="js/intel.js"></script>
+<script src="js/simulator.js"></script>
+<script src="js/reports.js"></script>
+<script src="js/logs.js"></script>
+</body>
+</html>

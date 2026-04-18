@@ -1,0 +1,12 @@
+[
+  {"value": "evil-c2.ru",           "category": "malware-c2",  "confidence": 96, "source": "ThreatFox",  "description": "Active C2 for Raccoon Stealer"},
+  {"value": "phish-login.xyz",      "category": "phishing",    "confidence": 94, "source": "PhishTank",  "description": "Credential harvesting phishing site"},
+  {"value": "malware-drop.top",     "category": "malware",     "confidence": 92, "source": "URLhaus",    "description": "Malware dropper delivery domain"},
+  {"value": "ransomware-pay.onion", "category": "ransomware",  "confidence": 99, "source": "CISA",       "description": "LockBit ransom payment portal"},
+  {"value": "botnet-cmd.net",       "category": "botnet",      "confidence": 91, "source": "AbuseIPDB",  "description": "IRC botnet command domain"},
+  {"value": "keylogger-exfil.cc",   "category": "data-exfil",  "confidence": 88, "source": "OTX",        "description": "Keylogger data exfiltration endpoint"},
+  {"value": "fake-bank-login.com",  "category": "phishing",    "confidence": 95, "source": "PhishTank",  "description": "Banking phishing portal"},
+  {"value": "cobalt-c2.io",         "category": "malware-c2",  "confidence": 90, "source": "ThreatFox",  "description": "Cobalt Strike team server domain"},
+  {"value": "spam-relay.pw",        "category": "spam",        "confidence": 82, "source": "SpamHaus",   "description": "Spam campaign relay domain"},
+  {"value": "cryptominer-pool.xyz", "category": "cryptominer", "confidence": 86, "source": "GreyNoise",  "description": "XMRig cryptomining pool"}
+]
