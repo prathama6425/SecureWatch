@@ -1,32 +1,19 @@
-"""
-Incident Response Module
-=========================
-Implements the full SOC IR workflow:
-  Alert → Triage → Investigate → Respond → Close
 
-Includes:
-  - Case / incident creation
-  - Severity-based escalation
-  - Timeline tracking
-  - Notes / analyst comments
-"""
 
 import json
 from datetime import datetime
 from database.db import query, insert, execute
 
-# ── Status flow ───────────────────────────────────────────────────────────────
+
 VALID_STATUSES = ["TRIAGE", "INVESTIGATE", "RESPOND", "CLOSED"]
 
-# ── Severity escalation thresholds ────────────────────────────────────────────
-# If an incident has >= N CRITICAL alerts not yet triaged, escalate.
+
 ESCALATION_THRESHOLD = 2
 
 def _now():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 
-# ── Incident CRUD ─────────────────────────────────────────────────────────────
 
 def create_incident(title: str, severity: str, alert_ids: list[int],
                     assigned_to: str = None) -> dict:
