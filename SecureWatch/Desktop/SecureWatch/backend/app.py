@@ -1,20 +1,3 @@
-"""
-Mini SOC Lab — Main Flask Application
-=======================================
-REST API backend for the SIEM-Based Threat Detection System.
-
-Endpoints:
-  Auth         POST /api/auth/login
-  Logs         GET/POST /api/logs
-  Alerts       GET/PATCH /api/alerts
-  Incidents    GET/POST/PATCH /api/incidents
-  Threat Intel GET/POST /api/iocs
-  Hunting      GET/POST /api/hunt
-  Reports      GET/POST /api/reports
-  Simulation   POST /api/simulate
-  Dashboard    GET /api/dashboard
-  Users        GET /api/users
-"""
 
 import sys
 import os
@@ -28,13 +11,13 @@ from flask_socketio import SocketIO, emit
 import json
 from datetime import datetime
 
-# ── App init ──────────────────────────────────────────────────────────────────
+
 app = Flask(__name__, static_folder="../frontend")
 app.config["SECRET_KEY"] = "soc-lab-secret-2026"
 CORS(app, origins="*")
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode="threading")
 
-# ── DB + modules ──────────────────────────────────────────────────────────────
+
 from database.db import init_db, query, execute, count
 from modules.log_collector    import ingest_log_batch, get_recent_logs, get_logs_by_ip
 from modules.threat_detector  import run_detection, get_all_alerts, update_alert_status
@@ -52,7 +35,6 @@ from modules.threat_hunter    import run_predefined_hunt, run_custom_hunt, list_
 from modules.report_generator import generate_daily_report, generate_weekly_report, get_reports, get_report_html
 from modules.attack_simulator  import run_simulation
 
-# ── Helpers ───────────────────────────────────────────────────────────────────
 
 def ok(data=None, msg="ok", **kwargs):
     resp = {"status": "ok", "message": msg}
@@ -69,7 +51,7 @@ def err(msg, code=400):
 def _get_user(req) -> dict | None:
     """Extract user from a simple token header (demo implementation)."""
     token = req.headers.get("X-Auth-Token", "")
-    # Token format: "username:role"  (real app would use JWT)
+    # Token format: "username:role" 
     if ":" in token:
         parts = token.split(":", 1)
         return {"username": parts[0], "role": parts[1]}
@@ -86,17 +68,12 @@ def _require_role(req, required_roles: list[str]):
     return user, None
 
 
-# ── Broadcast helper ──────────────────────────────────────────────────────────
 
 def _broadcast_alerts(alerts: list[dict]):
     """Push new alerts to all connected WebSocket clients."""
     if alerts:
         socketio.emit("new_alerts", {"alerts": alerts, "count": len(alerts)})
 
-
-# ════════════════════════════════════════════════════════════════════════════════
-# AUTH
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/auth/login", methods=["POST"])
 def login():
@@ -124,10 +101,6 @@ def me():
     return ok(user)
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# DASHBOARD
-# ════════════════════════════════════════════════════════════════════════════════
-
 @app.route("/api/dashboard", methods=["GET"])
 def dashboard():
     """Aggregate metrics for the main dashboard."""
@@ -142,14 +115,14 @@ def dashboard():
     open_inc      = count("incidents", "status != 'CLOSED'")
     total_iocs    = count("iocs")
 
-    # Alert trend (last 7 days — group by date)
+    # Alert trend
     trend = query("""
         SELECT DATE(created_at) as day, COUNT(*) as cnt
         FROM alerts
         GROUP BY day ORDER BY day DESC LIMIT 7
     """)
 
-    # Severity breakdown
+   
     sev = query("SELECT severity, COUNT(*) as cnt FROM alerts GROUP BY severity")
 
     # Top attacking IPs
@@ -166,10 +139,10 @@ def dashboard():
         GROUP BY mitre_tactic ORDER BY cnt DESC LIMIT 8
     """)
 
-    # Recent alerts
+    
     recent_alerts = get_all_alerts(limit=10)
 
-    # Recent incidents
+   
     recent_incidents = get_all_incidents()[:5]
 
     return ok({
@@ -188,9 +161,7 @@ def dashboard():
     })
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# LOGS
-# ════════════════════════════════════════════════════════════════════════════════
+
 
 @app.route("/api/logs", methods=["GET"])
 def get_logs():
@@ -266,9 +237,6 @@ def logs_by_ip(ip):
     return ok(get_logs_by_ip(ip))
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# ALERTS
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/alerts", methods=["GET"])
 def alerts():
@@ -298,9 +266,6 @@ def patch_alert_status(alert_id):
     return ok(msg=f"Alert {alert_id} status updated to {status}.")
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# INCIDENTS
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/incidents", methods=["GET"])
 def incidents():
@@ -380,10 +345,6 @@ def escalation_check():
     return ok(escalated, msg=f"{len(escalated)} incident(s) auto-escalated.")
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# THREAT INTELLIGENCE
-# ════════════════════════════════════════════════════════════════════════════════
-
 @app.route("/api/iocs", methods=["GET"])
 def iocs():
     ioc_type = request.args.get("type")
@@ -419,9 +380,6 @@ def add_ioc_endpoint():
     return ok(result, msg="IOC added.")
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# THREAT HUNTING
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/hunt/queries", methods=["GET"])
 def hunt_queries():
@@ -456,9 +414,6 @@ def hunt_custom():
         return err(str(e))
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# REPORTS
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/reports", methods=["GET"])
 def reports():
@@ -472,7 +427,7 @@ def gen_daily():
     if error:
         return error
     report = generate_daily_report()
-    # Return without the full HTML (too large)
+    # Return without the full HTML 
     report_meta = {k: v for k, v in report.items() if k != "html"}
     report_meta["html_url"] = f"/api/reports/{report['id']}/html"
     return ok(report_meta, msg="Daily report generated.")
@@ -498,9 +453,6 @@ def report_html(report_id):
     return Response(html, mimetype="text/html")
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# ATTACK SIMULATION
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/simulate", methods=["POST"])
 def simulate():
@@ -523,9 +475,6 @@ def simulate():
         return err(str(e))
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# USERS (admin only)
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/users", methods=["GET"])
 def users():
@@ -536,18 +485,12 @@ def users():
     return ok(rows)
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# CORRELATION SUMMARY
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/api/correlation", methods=["GET"])
 def correlation():
     return ok(get_correlation_summary())
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# SERVE FRONTEND
-# ════════════════════════════════════════════════════════════════════════════════
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
@@ -557,10 +500,6 @@ def serve_frontend(path):
         return send_from_directory(frontend_dir, path)
     return send_from_directory(frontend_dir, "index.html")
 
-
-# ════════════════════════════════════════════════════════════════════════════════
-# WEBSOCKET EVENTS
-# ════════════════════════════════════════════════════════════════════════════════
 
 @socketio.on("connect")
 def on_connect():
@@ -573,9 +512,6 @@ def on_disconnect():
     print(f"[WS] Client disconnected: {request.sid}")
 
 
-# ════════════════════════════════════════════════════════════════════════════════
-# STARTUP
-# ════════════════════════════════════════════════════════════════════════════════
 
 if __name__ == "__main__":
     print("=" * 60)
@@ -583,11 +519,8 @@ if __name__ == "__main__":
     print("  Starting server on http://localhost:5000")
     print("=" * 60)
 
-    # Initialise DB
     init_db()
 
-    # Load IOC feeds into memory
     load_ioc_feeds()
 
-    # Start SocketIO server
     socketio.run(app, host="0.0.0.0", port=5000, debug=True, use_reloader=False, allow_unsafe_werkzeug=True)
