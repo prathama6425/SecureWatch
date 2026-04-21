@@ -1,16 +1,4 @@
-"""
-Attack Simulator
-=================
-Generates realistic attack log entries to simulate:
-  1. Brute force SSH attack (T1110)
-  2. Network port scan (T1046)
-  3. Phishing + web credential harvesting (T1566)
-  4. C2 beacon / lateral movement
-  5. Data exfiltration attempt
 
-Uses log_collector to normalize and ingest the simulated logs
-so the full detection pipeline fires.
-"""
 
 import random
 import time
@@ -20,13 +8,12 @@ from modules.threat_detector import run_detection
 from modules.correlator import run_correlation
 from modules.threat_intel import match_logs_against_iocs
 
-# ── Attacker IPs (some are in the IOC feed) ───────────────────────────────────
 ATTACKER_IPS = [
-    "45.142.212.100",   # In IOC feed (malicious)
-    "185.220.101.45",   # In IOC feed (Tor exit node)
-    "192.168.99.200",   # Internal rogue device
-    "103.25.206.34",    # Generic external
-    "198.51.100.77",    # Documentation range (safe-looking)
+    "45.142.212.100",   
+    "185.220.101.45",   
+    "192.168.99.200",   
+    "103.25.206.34",   
+    "198.51.100.77",   
 ]
 
 TARGET_IPS   = ["10.0.0.10", "10.0.0.20", "10.0.0.30"]
@@ -40,7 +27,6 @@ def _ts(offset_secs: int = 0) -> str:
     return t.strftime("%Y-%m-%d %H:%M:%S")
 
 
-# ── Simulation 1: SSH Brute Force ────────────────────────────────────────────
 
 def sim_brute_force(attacker_ip: str = None, target_user: str = "root",
                     num_attempts: int = 20) -> dict:
@@ -56,7 +42,7 @@ def sim_brute_force(attacker_ip: str = None, target_user: str = "root",
             f"victim-srv sshd[{random.randint(1000,9999)}]: "
             f"Failed password for {target_user} from {ip} port {random.randint(40000,65000)} ssh2"
         )
-    # Final success
+    
     lines.append(
         f"Apr 15 {datetime.now().strftime('%H:%M:%S')} "
         f"victim-srv sshd[{random.randint(1000,9999)}]: "
@@ -79,7 +65,7 @@ def sim_brute_force(attacker_ip: str = None, target_user: str = "root",
     }
 
 
-# ── Simulation 2: Port Scan ───────────────────────────────────────────────────
+
 
 def sim_port_scan(attacker_ip: str = None, num_ports: int = 30) -> dict:
     """
@@ -113,7 +99,7 @@ def sim_port_scan(attacker_ip: str = None, num_ports: int = 30) -> dict:
     }
 
 
-# ── Simulation 3: Phishing Web Attack ────────────────────────────────────────
+
 
 def sim_phishing_web(attacker_ip: str = None) -> dict:
     """
@@ -157,7 +143,7 @@ def sim_phishing_web(attacker_ip: str = None) -> dict:
     }
 
 
-# ── Simulation 4: Full Attack Chain ──────────────────────────────────────────
+
 
 def sim_full_chain(attacker_ip: str = None) -> dict:
     """
@@ -183,7 +169,7 @@ def sim_full_chain(attacker_ip: str = None) -> dict:
     }
 
 
-# ── Registry ──────────────────────────────────────────────────────────────────
+
 
 SIMULATIONS = {
     "brute_force":  sim_brute_force,
